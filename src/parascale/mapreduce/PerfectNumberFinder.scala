@@ -24,7 +24,7 @@ package parascale.mapreduce
 
 import parascale.future.perfect.{ask, _sumOfFactorsInRange, candidates}
 
-object MrPerfectNumberFinder extends App {
+object PerfectNumberFinder extends App {
   (0 until candidates.length).foreach { index =>
     val num = candidates(index)
     println(num + " is perfect? "+ ask(isPerfect,num))
