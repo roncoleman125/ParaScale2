@@ -46,11 +46,11 @@ package object perfect {
   def ask(method: Long => Boolean, number: Long): String = {
     val t0 = System.nanoTime
 
-    val result = method(number)
+    val isTrue = method(number)
 
     val t1 = System.nanoTime
 
-    val answer = if(result) "YES" else "NO"
+    val answer = if(isTrue) "YES" else "NO"
 
     answer + " dt = "+(t1-t0)/1000000000.0 + "s"
   }
