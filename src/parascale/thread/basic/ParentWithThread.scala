@@ -22,6 +22,7 @@ package parascale.thread.basic
 /**
   * This object is responsible for spawning the child thread and waiting for it
   * to complete.
+  * @author Ron.Coleman
   */
 object ParentWithThread extends App {
   val numCores = Runtime.getRuntime.availableProcessors

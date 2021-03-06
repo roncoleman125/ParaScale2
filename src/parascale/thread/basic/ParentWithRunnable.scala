@@ -19,17 +19,26 @@
  */
 package parascale.thread.basic
 
+/**
+  * This object is responsible for spawning a number of child threads as the number of cores.
+  * @author Ron.Coleman
+  */
 object ParentWithRunnable extends App {
   val numCores = Runtime.getRuntime.availableProcessors
 
-  val child = new Thread(new ChildRunnable(0))
-
-  child.start
+  val children = for(no <- 0 until numCores) yield {
+    val child = new Thread(new ChildRunnable(no))
+    child.start
+    child
+  }
 
   val numThreads = Thread.activeCount
+
   val id = Thread.currentThread.getId
 
-  println("parent: "+id+" "+numCores+" "+numThreads)
+  println("parent: "+numCores+" "+numThreads+" "+id)
 
-  child.join
+  children.foreach { child =>
+    child.join
+  }
 }

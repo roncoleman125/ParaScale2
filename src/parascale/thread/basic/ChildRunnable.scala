@@ -19,6 +19,11 @@
  */
 package parascale.thread.basic
 
+/**
+  * Demonstrates how to implement a runnable.
+  * @param no Child number assigned by the parent.
+  * @author Ron.Coleman
+  */
 class ChildRunnable(no: Int) extends Runnable {
 
   /**

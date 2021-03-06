@@ -19,6 +19,11 @@
  */
 package parascale.thread.basic
 
+/**
+  * Demonstrates how to extend a thread.
+  * @param no Child number assigned by the parent.
+  * @author Ron.Coleman
+  */
 class ChildThread(no: Int) extends Thread {
   /**
     * Runs the child thread.
