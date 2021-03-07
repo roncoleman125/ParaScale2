@@ -35,7 +35,7 @@ package object perfect {
       8589869056L+1, // Ditto
       8589869056L,
       137438691328L,
-      2305843008139952128L  // May take months or years to prove
+      2305843008139952128L  // May take est. 170 years to prove.
     )
 
   /**
