@@ -38,7 +38,7 @@ package object perfect {
       2305843008139952128L)
 
   /**
-    * Convenience method to measure the runtime of a method.
+    * Convenience method to query number.
     * @param method Method to invoke
     * @param number Number to query
     * @return True if the method is true, false otherwise
