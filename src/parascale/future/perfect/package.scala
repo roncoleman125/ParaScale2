@@ -31,14 +31,15 @@ package object perfect {
       496,
       8128,
       33550336,
-      33550336+1,
-      8589869056L+1,
+      33550336+1,    // Negative case to test algorithm
+      8589869056L+1, // Ditto
       8589869056L,
       137438691328L,
-      2305843008139952128L)
+      2305843008139952128L  // May take months or years to prove
+    )
 
   /**
-    * Convenience method to query number.
+    * Queries a number.
     * @param method Method to invoke
     * @param number Number to query
     * @return True if the method is true, false otherwise
