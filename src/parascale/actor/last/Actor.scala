@@ -33,7 +33,7 @@ object Actor {
   var actors = Map[Long, Actor]()
 
   /**
-    * Looks an actor by its id.
+    * Looks up an actor by its id.
     * @param id
     * @return
     */
