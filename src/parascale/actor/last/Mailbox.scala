@@ -48,7 +48,7 @@ class Mailbox[T] {
 
   /**
     * Removes a task from the queue.
-    * @return Some in the mailbox
+    * @return Some item in the mailbox
     */
   def remove: T = synchronized {
     // If the mail queue is emtpy then we'll wait to be notified
