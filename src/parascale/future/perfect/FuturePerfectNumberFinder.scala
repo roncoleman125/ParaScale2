@@ -52,7 +52,7 @@ object FuturePerfectNumberFinder extends App {
       val upper: Long = candidate min (k + 1) * RANGE
 
       // This method returns the SOF which is the promise
-      sumOfFactorsInRange_(lower, upper, candidate)
+      sumOfFactorsInRange(lower, upper, candidate)
     }
 
     // Wait for the children futures
@@ -75,21 +75,16 @@ object FuturePerfectNumberFinder extends App {
     * Computes the sum of factors in a range using a loop which is robust for large numbers.
     * @param lower Lower part of range
     * @param upper Upper part of range
-    * @param number Number
+    * @param candidate Number
     * @return Sum of factors
     */
-  def sumOfFactorsInRange_(lower: Long, upper: Long, number: Long): Long = {
-    var index: Long = lower
-
-    var sum = 0L
-
-    while(index <= upper) {
-      if(number % index == 0L)
-        sum += index
-
-      index += 1L
+  def sumOfFactorsInRange(lower: Long, upper: Long, candidate: Long): Long = {
+    val sum = (lower to upper).foldLeft(0L) { (sum, index) =>
+      if (candidate % index == 0L)
+        sum + index
+      else
+        sum
     }
-
     sum
   }
 }
