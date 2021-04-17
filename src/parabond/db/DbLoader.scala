@@ -85,12 +85,13 @@ object DbLoader {
     // Loop through input data file, convert each record to a mongo object,
     // and store in mongo
     for (record <- Source.fromFile(Constant.INPUT_PORTFS_FILENAME).getLines()) {          
-      val ids = record.split(" +").toList    
-      
+      val ids = record.split(" +").toList
+
+      // First two fields are portf id & number of bonds--drop them (below)
       val bondsIds = for (id <- ids) yield id.trim.toInt
 
       val portfId = ids(0).trim.toInt
-      
+
       val entry = MongoDbObject("id" -> portfId, "instruments" -> bondsIds.drop(2))
       
       mongo.insertOne(entry)
