@@ -25,6 +25,8 @@ package parascale.actor.last
 import java.io.ObjectOutputStream
 import java.net.{InetAddress, Socket}
 
+import parascale.util.getPropertyOrElse
+
 /** Experimental task enumeration */
 object TaskType extends Enumeration {
   val TASK, REPLY = Value
@@ -34,7 +36,7 @@ object TaskType extends Enumeration {
 object Task {
   val TASK = 0
   val REPLY = 1
-  val LOCAL_HOST = InetAddress.getLocalHost.getHostAddress + ":0"
+  val LOCAL_HOST = getPropertyOrElse("bindAddr", InetAddress.getLocalHost.getHostAddress) + ":0"
 }
 
 /**

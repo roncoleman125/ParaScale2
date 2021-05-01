@@ -25,6 +25,8 @@ package parascale.actor.last
 import java.io.ObjectOutputStream
 import java.net.{InetAddress, ServerSocket, Socket}
 
+import parascale.util.getPropertyOrElse
+
 /**
   * This object binds an actor for reply purposes to a destination host.
   * @author Ron.Coleman
@@ -58,7 +60,7 @@ class Relay(forward: String, callback: Actor) extends Actor {
   LOG.info("relaying all messages to "+forwardAddr+":"+forwardPort)
 
   // Initialize reply target
-  val replyAddr =  InetAddress.getLocalHost.getHostAddress
+  val replyAddr = getPropertyOrElse("bindAddr", InetAddress.getLocalHost.getHostAddress)
   val replyPort = forwardPort + Thread.activeCount
   LOG.info("listening for replies on "+replyAddr+":"+replyPort)
 
