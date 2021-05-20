@@ -65,21 +65,21 @@ package object perfect {
     (1L to number.toLong).foldLeft(0L) { (sum, i) => if (number % i == 0L) sum + i else sum }
   }
 
-  /**
-    * Sums the factors using a loop which is more robust for large numbers.
-    * @param number Number
-    * @return sum of factors
-    */
-  def _sumOfFactors(number: Long) = {
-    var index = 1L
-    var sum = 0L
-    while(index <= number.toLong) {
-      if(number % index == 0)
-        sum += index
-      index += 1
-    }
-    sum
-  }
+//  /**
+//    * Sums the factors using a loop which is more robust for large numbers.
+//    * @param number Number
+//    * @return sum of factors
+//    */
+//  def _sumOfFactors(number: Long) = {
+//    var index = 1L
+//    var sum = 0L
+//    while(index <= number.toLong) {
+//      if(number % index == 0)
+//        sum += index
+//      index += 1
+//    }
+//    sum
+//  }
 
   /**
     * Computes the sum of factors in a range using a range which may fail for large numbers.
