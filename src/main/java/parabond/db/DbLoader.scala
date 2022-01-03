@@ -27,7 +27,7 @@
 package parabond.db
 
 import scala.io.Source
-import casa.{MongoConnection, MongoDbObject}
+import parabond.casa.{MongoConnection, MongoDbObject}
 import parabond.util.{Constant, MongoHelper}
 
 /**

@@ -27,7 +27,7 @@
 package parabond.test
 
 import scala.util.Random
-import casa.MongoDbObject
+import parabond.casa.MongoDbObject
 import parabond.util.{Helper, MongoHelper, Result}
 import parabond.value.SimpleBondValuator
 import parabond.mr._

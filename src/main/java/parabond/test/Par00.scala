@@ -26,38 +26,40 @@
  */
 package parabond.test
 
-import casa.MongoDbObject
-import parabond.util.{Helper, Job, MongoHelper, Result}
-import parabond.value.SimpleBondValuator
 import scala.util.Random
-import parabond.entry.SimpleBond
+import parabond.casa.MongoDbObject
+import parabond.util.{Helper, Job, Mongo, MongoHelper, Result}
+import parabond.value.SimpleBondValuator
 import parascale.util._
 import parabond.util.Constant.{DIAGS_DIR, PORTF_NUM}
 import scala.collection.parallel.CollectionConverters._
 
 /** Test driver */
-object Par03 {
+object Par00 {
   def main(args: Array[String]): Unit = {
-    (new Par03).test
+    val currentDirectory = new java.io.File(".").getCanonicalPath
+    println(currentDirectory)
+    (new Par00).test
   }
 }
 
 /**
-  * This class uses parallel collections to price n portfolios in the
-  * parabond database using the fine-grain algorithm. This class differs from
-  * Par02 in that it does not preload the portfolio data.
-  *
-  * @author Ron Coleman
-  */
-class Par03 {
+ * This class uses parallel collections to price n portfolios in the
+ * parabond database using the composite "naive" algorithm.
+ * @author Ron Coleman
+ */
+class Par00 {
   /** Initialize the random number generator */
   val ran = new Random(0)   
   
   /** Write a detailed report */
-  val details = false
+  val details = true
 
-  /** Runs a unit test */
+  /** Runs the test */
   def test {
+    // To completely hush mongo
+    Mongo.shush()
+
     // Set the number of portfolios to analyze
     val n = getPropertyOrElse("n",PORTF_NUM)
 
@@ -69,25 +71,29 @@ class Par03 {
     
     val fos = new java.io.FileOutputStream(outFile,true)
     val os = new java.io.PrintStream(fos)
+
+    //redirectErr
     
     os.print(me+" "+ "N: "+n+" ")
 
     val details = getPropertyOrElse("details",parseBoolean,false)
-    
-    // Build the portfolio list    
-    val portfIds = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null, null)
-    
-    // Build the portfolio list
-    val t0 = System.nanoTime
-    val results = portfIds.par.map(price)
-    val t1 = System.nanoTime
 
+    // Build the portfolio list    
+    val portfIds = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null,null)
+
+    // Parallel price the portfolios
+    val t0 = System.nanoTime
+
+    val results = portfIds.par.map(price)
+
+    val t1 = System.nanoTime
+    
     // Generate the detailed output report
     if(details) {
       println("%6s %10.10s %-5s %-2s".format("PortId","Price","Bonds","dt"))
-
+      
       results.foreach { output =>
-        val id = output.result.portfId
+        val id = output.portfId
 
         val dt = (output.result.t1 - output.result.t0) / 1000000000.0
 
@@ -99,71 +105,69 @@ class Par03 {
       }
     }
 
-    val dt1 = results.foldLeft(0.0) { (sum,result) =>
-      sum + (result.result.t1 - result.result.t0)
+    val dt1 = results.foldLeft(0.0) { (sum, output) =>
+      sum + (output.result.t1 - output.result.t0)
 
     } / 1000000000.0
-
+    
     val dtN = (t1 - t0) / 1000000000.0
-
+    
     val speedup = dt1 / dtN
-
+    
     val numCores = Runtime.getRuntime().availableProcessors()
-
+    
     val e = speedup / numCores
-
+    
     os.println("dt(1): %7.4f  dt(N): %7.4f  cores: %d  R: %5.2f  e: %5.2f ".
-        format(dt1,dtN,numCores,speedup,e))
-
+        format(dt1,dtN,numCores,speedup,e))  
+    
     os.flush
-
+    
     os.close
-
-    println(me+" DONE! %d %7.4f".format(n,dtN))
+    
+    println(me+" DONE! %d %7.4f %7.4f".format(n, dt1, dtN))
   }
-
+   
+  /**
+   * Prices a portfolio using the "basic" algorithm.
+   */
   def price(job: Job): Job = {
-
     // Value each bond in the portfolio
     val t0 = System.nanoTime
 
     // Retrieve the portfolio
     val portfId = job.portfId
-
+    
     val portfsQuery = MongoDbObject("id" -> portfId)
 
     val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
-
-    // Get the bonds in the portfolio
-    val bids = MongoHelper.asList(portfsCursor,"instruments")
-
-    val bondIds = for(i <- 0 until bids.size) yield Job(bids(i),null,null)
-
-
-    // Value each bond in parallel
-    val outputStage1 = bondIds.par.map { bondId =>
-      // Get the bond from the bond collection
-      val bondQuery = MongoDbObject("id" -> bondId.portfId)
+    
+    // Get the bonds ids in the portfolio
+    val bondIds = MongoHelper.asList(portfsCursor,"instruments")
+    
+    // Price each bond and sum all the prices
+    val value = bondIds.foldLeft(0.0) { (sum, id) =>
+      // Get the bond from the bond collection by its key id
+      val bondQuery = MongoDbObject("id" -> id)
 
       val bondCursor = MongoHelper.bondCollection.find(bondQuery)
 
       val bond = MongoHelper.asBond(bondCursor)
-
+      
+      // Price the bond
       val valuator = new SimpleBondValuator(bond, Helper.yieldCurve)
 
       val price = valuator.price
-
-      new SimpleBond(bond.id,bond.coupon,bond.freq,bond.tenor,price)
-    }
-
-    val outputStage2 = outputStage1.par.reduce { (a: SimpleBond, b:SimpleBond) =>
-      new SimpleBond(0,0,0,0,a.maturity+b.maturity)
-    }
-
-    MongoHelper.updatePrice(job.portfId,outputStage2.maturity)
-
+      
+      // The price into the aggregate sum
+      sum + price
+    }    
+    
+    // Update the portfolio price
+    MongoHelper.updatePrice(portfId,value) 
+    
     val t1 = System.nanoTime
-
-    Job(job.portfId,null,Result(job.portfId,outputStage2.maturity,bondIds.size,t0,t1))
-  }    
+    
+    Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1))
+  }
 }

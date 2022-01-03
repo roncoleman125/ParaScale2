@@ -27,40 +27,59 @@
 package parabond.cluster
 
 import org.apache.log4j.Logger
-import casa.MongoDbObject
-import parabond.util.{Helper, Job, MongoHelper, Result}
-import parabond.util.Constant.PORTF_NUM
-import parabond.value.SimpleBondValuator
+import parabond.casa.MongoDbObject
+import parabond.util.Constant.{NUM_PORTFOLIOS, PORTF_NUM}
+import parabond.util.{Job, MongoHelper}
 import parascale.util.getPropertyOrElse
 import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
 /**
-  * Runs a basic node which retrieves the portfolios in random order and prices the portfolios
-  * as a parallel collection.
+  * Runs a coarse node which retrieves the portfolios in block random order and prices the blocks sequentially.
   */
-object BasicNode extends App {
+object CoarseGrainedNode extends App {
   val LOG = Logger.getLogger(getClass)
 
-  // Set the run parameters
   val seed = getPropertyOrElse("seed",0)
+  val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
   val n = getPropertyOrElse("n", PORTF_NUM)
   val begin = getPropertyOrElse("begin", 0)
 
-  // Reset the check portfolios over ALL portfolios
   val checkIds = checkReset(n)
 
-  // Run the analysis
-  val partition = Partition(n, begin)
-  val analysis = new BasicNode analyze(partition)
+  val analysis = new CoarseGrainedNode analyze(Partition(n=n, begin=begin))
+
+  // Validate the check id by...
+  // 1. Testing a random portfolio against the check value
+  // 2. Resetting the portfolio value -- to test the check method invoked by report
+  val checkId = checkIds(0);
+
+  val portfsQuery = MongoDbObject("id" -> checkId)
+
+  val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
+
+  val price = MongoHelper.asDouble(portfsCursor,"price")
+
+  if(price != CHECK_VALUE)
+    MongoHelper.updatePrice(checkId, CHECK_VALUE)
 
   report(LOG, analysis, checkIds)
 }
 
 /**
-  * Prices one portfolio per core using the basic or "naive" algorithm.
+  * Prices a block of portfolios per core.
   */
-class BasicNode extends Node {
+class CoarseGrainedNode extends Node {
+  /**
+    * Prices each portfolio
+    * @return
+    */
+  def basic = new BasicNode
+
+  /**
+    * Runs the portfolio analyses.
+    * @return Analysis
+    */
   def analyze(partition: Partition): Analysis = {
     // Clock in
     val t0 = System.nanoTime
@@ -77,65 +96,46 @@ class BasicNode extends Node {
     val begin = partition.begin
     val end = begin + partition.n
 
-    // The jobs working we're on, k+1 since portf ids are 1-based
-    val portfIds = for(k <- begin until end) yield Job(deck(k) + 1)
+    // Indices in the deck we're working on
+    // Note: k+1 since portf ids are 1-based
+    val jobs = for(k <- begin until end) yield Job(deck(k) + 1)
 
-    // Get the proper collection depending on whether we're measuring T1 or TN
-    val jobs = if(partition.para) portfIds.par else portfIds
+    // Block the indices according to number of cores: each core gets a single clock.
+    val numCores = getPropertyOrElse("cores",Runtime.getRuntime.availableProcessors)
+
+//    val blksize = partition.n / numCores
+    // Get block size of portfolios a core will analyze.
+    // Fixed proposed by R.A. Dartey, 26 May 2021.
+    val blksize = (partition.n.toDouble / numCores).ceil.toInt
+
+    val blocks = for(core <- 0 until numCores) yield {
+      val start = core * blksize
+      val finish = start + blksize
+
+      jobs.slice(start, finish)
+    }
 
     // Run the analysis
-    val results = jobs.map(price)
+    val results = blocks.par.map(price)
+
+    // Need Seq[Data], not ParSeq[Seq[Data]], for reporting and compiler specs
+    val flattened = results.flatten
 
     // Clock out
     val t1 = System.nanoTime
 
-    Analysis(results.toList, t0, t1)
+    Analysis(flattened.toList, t0, t1)
   }
 
   /**
-    * Prices a portfolio using the "naive" algorithm.
-    * It makes two requests of the database:<p>
-    * 1) fetch the portfolio<p>
-    * 2) fetch bonds in that portfolio.<p>
-    * After the second fetch the bond is then valued and added to the portfoio value
+    * Prices a collection of tasks.
+    * Assumes tasks is a serial collection.
+    * Check above to find blocks is IndexSeq[IndexSeq[Task]]. So .par on it will be
+    * ParSeq[IndexSeq[Task]]. So tasks should be IndexSeq[Task].
+    * @param jobs Jobs
+    * @return Completed work
     */
-  def price(job: Job): Job = {
-    // Value each bond in the portfolio
-    val t0 = System.nanoTime
-
-    // Retrieve the portfolio
-    val portfId = job.portfId
-
-    val portfsQuery = MongoDbObject("id" -> portfId)
-
-    val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
-
-    // Get the bonds ids in the portfolio
-    val bondIds = MongoHelper.asList(portfsCursor,"instruments")
-
-    // Price each bond and sum all the prices
-    val value = bondIds.foldLeft(0.0) { (sum, id) =>
-      // Get the bond from the bond collection by its key id
-      val bondQuery = MongoDbObject("id" -> id)
-
-      val bondCursor = MongoHelper.bondCollection.find(bondQuery)
-
-      val bond = MongoHelper.asBond(bondCursor)
-
-      // Price the bond
-      val valuator = new SimpleBondValuator(bond, Helper.yieldCurve)
-
-      val price = valuator.price
-
-      // Update portfolio price
-      sum + price
-    }
-
-    // Update the portfolio price in the database
-    MongoHelper.updatePrice(portfId,value)
-
-    val t1 = System.nanoTime
-
-    Job(portfId,job.bonds,Result(portfId,value,bondIds.size,t0,t1))
+  def price(jobs: Seq[Job]) : Seq[Job] = {
+    jobs.map(basic.price)
   }
 }

@@ -26,32 +26,48 @@
  */
 package parabond.test
 
-import casa.MongoDbObject
-import parabond.util.{Helper, MongoHelper, Result}
+import parabond.casa.{MongoConnection, MongoDbObject}
+import parabond.util.Constant.DIAGS_DIR
+import parabond.util.{Helper, MongoHelper}
 
 import scala.util.Random
 import parabond.value.SimpleBondValuator
-import parascale.util._
-import parabond.util.Constant.{DIAGS_DIR, PORTF_NUM}
+import parascale.util.{getPropertyOrElse, redirectErr}
+
+import scala.util.Random
 
 /** Test driver */
-object Ser00 {
+object Ser01 {
   def main(args: Array[String]): Unit = {
-    (new Ser00).test
+    (new Ser01).test
   }
 }
 
 /**
- * This class implements the composite serial algorithm.
+ * This class implements the memory-bound serial algorithm.
  * @author Ron Coleman, Ph.D.
  */
-class Ser00 {
+class Ser01 {
+  /** Number of bond portfolios to analyze */
+  val PORTF_NUM = 100
+
+  /** Connects to the parabond DB */
+  val mongo = MongoConnection(MongoHelper.getHost)("parabond")
+  
   /** Initialize the random number generator */
   val ran = new Random(0)  
+  
+  /** Write a detailed report */
+  val details = true
+  
+  /** Record captured with each result */
+  case class Result(id: Int, price: Double, bondCount: Int, t0: Long, t1: Long)
 
   def test {  
     // Set the number of portfolios to analyze
-    val n = getPropertyOrElse("n",PORTF_NUM)
+    val arg = System.getProperty("n")
+    
+    val n = if(arg == null) PORTF_NUM else arg.toInt
 
     val me =  this.getClass().getSimpleName()
 
@@ -63,38 +79,26 @@ class Ser00 {
     val os = new java.io.PrintStream(fos)
 
     redirectErr
-
-    os.print(me+" "+ "N: "+n+" ")    
+        
+    os.print(me+" "+ "N: "+n+" ")  
     
-    val details = if(System.getProperty("details") != null) true else false
+    val details = getPropertyOrElse("details", false)
     
-    val portfIds = (1 to n).foldLeft(List[Int]()) { (list, p) =>
-      val r = ran.nextInt(100000)+1
-      list ::: List(r)
-    }    
+    val t2 = System.nanoTime
+    val portfolios = MongoHelper.loadPortfs(n)
+    val t3 = System.nanoTime 
     
     val t0 = System.nanoTime
     
-    val results = portfIds.foldLeft(List[Result]()) { (sum, portfId) =>
+    val results = portfolios.foldLeft(List[Result]()) { (sum, portfolio) =>
       // Value each bond in the portfolio
       val t0 = System.nanoTime
 
-      // Retrieve the portfolio
-      val portfsQuery = MongoDbObject("id" -> portfId)
+      // Retrieve the portfolio 
+      val (portfId, bonds) = portfolio
 
-      val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
-
-      // Get the bonds in the portfolio
-      val bondIds = MongoHelper.asList(portfsCursor, "instruments")
-
-      val value = bondIds.foldLeft(0.0) { (sum, id) =>
-        // Get the bond from the bond collection
-        val bondQuery = MongoDbObject("id" -> id)
-
-        val bondCursor = MongoHelper.bondCollection.find(bondQuery)
-
-        val bond = MongoHelper.asBond(bondCursor)
-
+      val value = bonds.foldLeft(0.0) { (sum, bond) =>
+        
         // Price the bond
         val valuator = new SimpleBondValuator(bond, Helper.yieldCurve)
 
@@ -104,11 +108,11 @@ class Ser00 {
         sum + price
       }
       
-      MongoHelper.updatePrice(portfId, value)
+      MongoHelper.updatePrice(portfId,value)
       
       val t1 = System.nanoTime
       
-      Result(portfId,value,bondIds.size,t0,t1) :: sum     
+      Result(portfId,value,bonds.size,t0,t1) :: sum     
     }
     
     val t1 = System.nanoTime
@@ -118,13 +122,13 @@ class Ser00 {
       println("%6s %10.10s %-5s %-2s".format("PortId", "Price", "Bonds", "dt"))
 
       results.reverse.foreach { result =>
-        val id = result.portfId
+        val id = result.id
 
         val dt = (result.t1 - result.t0) / 1000000000.0
 
         val bondCount = result.bondCount
 
-        val price = result.value
+        val price = result.price
 
         println("%6d %10.2f %5d %6.4f %12d %12d".format(id, price, bondCount, dt, result.t1 - t0, result.t0 - t0))
       }
@@ -144,13 +148,16 @@ class Ser00 {
     
     val e = 1.0
     
-    os.println("dt(1): %7.4f  dt(N): %7.4f  cores: %d  R: %5.2f  e: %5.2f ".
-        format(dt1,dtN,numCores,speedup,e))  
+    os.print("dt(1): %7.4f  dt(N): %7.4f  cores: %d  R: %5.2f  e: %5.2f ".
+        format(dt1,dtN,numCores,speedup,e))     
+    
+    os.println("load t: %8.4f ".format((t3-t2)/1000000000.0))   
     
     os.flush
     
     os.close
     
-    println(me+" DONE! %d %7.4f".format(n,dtN))    
+    println(me+" DONE! %d %7.4f".format(n,dtN))     
   }
+  
 }

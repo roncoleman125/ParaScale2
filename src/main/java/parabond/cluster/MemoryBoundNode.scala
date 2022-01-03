@@ -28,7 +28,7 @@ package parabond.cluster
 
 import org.apache.log4j.Logger
 import parabond.util.Constant.PORTF_NUM
-import casa.MongoDbObject
+import parabond.casa.MongoDbObject
 import parabond.util.MongoHelper.{bondCollection, mongo}
 import parabond.entry.SimpleBond
 import parabond.util.{Helper, Job, MongoHelper, Result}

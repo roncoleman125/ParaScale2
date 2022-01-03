@@ -24,45 +24,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package parabond.test
+package parabond.casa
 
-import parabond.mr._
+import com.mongodb.MongoClient
+import com.mongodb.client.MongoDatabase
 
-/** Test driver */
-object Mr00 {
-  def main(args: Array[String]): Unit = {
-    (new Mr00).test
-  }
+/**
+ * This class implements the mongodb facade pattern
+ * @author Ron.Coleman
+ */
+class MongoDb(db: MongoDatabase) {
+  def apply(collName: String) = db.getCollection(collName)
 }
 
 /**
- * This class runs a mapreduce unit test for a limited number portfolios in the parabond database.
+ * This class allows one to connect to a mongo database.
  * @author Ron Coleman
  */
-class Mr00 {
-  /** Executes test */
-  def test {
-    // Create the input of a list of Tuple2(portf id, curve coefficients).
-    val input = (1 to 4).foldLeft(List[Int]()) { (list, p) =>
-      list ++ List(p)
-    }
-    
-    // Run the map-reduce
-    val t0 = System.nanoTime
-    
-    val results = mapreduce(input, mapping, reducing)
-    
-    val t1 = System.nanoTime
-    
-    println("%6s %10.10s".format("PortId","Value"))
-
-    // Generate the report by portfolio with the run-time
-    for((portfId, result) <- results) {
-      println("%6d %10.2f".format(portfId, result.value))
-    }
-
-    val dt = (t1 - t0) / 1000000000.0
-    
-    println("dt = %f".format(dt))    
-  }
+object MongoDb {
+  def apply(client: MongoClient, dbName: String): MongoDatabase = client.getDatabase(dbName)
 }

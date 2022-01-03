@@ -27,43 +27,79 @@
 package parabond.cluster
 
 import org.apache.log4j.Logger
-import casa.MongoDbObject
-import parabond.entry.SimpleBond
-import parabond.util.Constant.{NUM_PORTFOLIOS, PORTF_NUM}
+import parabond.casa.MongoDbObject
 import parabond.util.{Helper, Job, MongoHelper, Result}
+import parabond.util.Constant.PORTF_NUM
 import parabond.value.SimpleBondValuator
 import parascale.util.getPropertyOrElse
+import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
 /**
-  * Runs a fine grain node which retrieves the portfolios in random order and prices the bonds as
-  * a parallel collection.
+  * Runs a basic node which retrieves the portfolios in random order and prices the portfolios
+  * as a parallel collection.
   */
-object FineGrainedNode extends App {
+object BasicNode extends App {
   val LOG = Logger.getLogger(getClass)
 
+  // Set the run parameters
   val seed = getPropertyOrElse("seed",0)
-  val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
   val n = getPropertyOrElse("n", PORTF_NUM)
   val begin = getPropertyOrElse("begin", 0)
 
+  // Reset the check portfolios over ALL portfolios
   val checkIds = checkReset(n)
 
-  val analysis = new FineGrainedNode analyze(Partition(n=n, begin=begin))
+  // Run the analysis
+  val partition = Partition(n, begin)
+  val analysis = new BasicNode analyze(partition)
 
   report(LOG, analysis, checkIds)
 }
 
 /**
-  * Prices one bond per core then rolls these prices into the portfolio price.
+  * Prices one portfolio per core using the basic or "naive" algorithm.
   */
-class FineGrainedNode extends BasicNode {
+class BasicNode extends Node {
+  def analyze(partition: Partition): Analysis = {
+    // Clock in
+    val t0 = System.nanoTime
+
+    // Seed must be same for every host in cluster as this establishes
+    val ran = new Random(partition.seed)
+
+    // Shuffled deck of portfolios -- random sample without replacement
+    val sample = (0 until partition.size).toList
+    val deck = ran.shuffle(sample)
+
+    // Number of portfolios to analyze
+    // Start and end (inclusive) indices in analysis sequence
+    val begin = partition.begin
+    val end = begin + partition.n
+
+    // The jobs working we're on, k+1 since portf ids are 1-based
+    val portfIds = for(k <- begin until end) yield Job(deck(k) + 1)
+
+    // Get the proper collection depending on whether we're measuring T1 or TN
+    val jobs = if(partition.para) portfIds.par else portfIds
+
+    // Run the analysis
+    val results = jobs.map(price)
+
+    // Clock out
+    val t1 = System.nanoTime
+
+    Analysis(results.toList, t0, t1)
+  }
+
   /**
-    * Price a portfolio
-    * @param job Portfolio ids
-    * @return Valuation
+    * Prices a portfolio using the "naive" algorithm.
+    * It makes two requests of the database:<p>
+    * 1) fetch the portfolio<p>
+    * 2) fetch bonds in that portfolio.<p>
+    * After the second fetch the bond is then valued and added to the portfoio value
     */
-  override def price(job: Job): Job = {
+  def price(job: Job): Job = {
     // Value each bond in the portfolio
     val t0 = System.nanoTime
 
@@ -74,40 +110,32 @@ class FineGrainedNode extends BasicNode {
 
     val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
 
-    // Get the bonds in the portfolio
-    val bids = MongoHelper.asList(portfsCursor,"instruments")
+    // Get the bonds ids in the portfolio
+    val bondIds = MongoHelper.asList(portfsCursor,"instruments")
 
-    val bondIds = for(i <- 0 until bids.size) yield Job(bids(i),null,null)
-
-    val output = bondIds.par.map { bondId =>
-      // Get the bond from the bond collection
-      val bondQuery = MongoDbObject("id" -> bondId.portfId)
+    // Price each bond and sum all the prices
+    val value = bondIds.foldLeft(0.0) { (sum, id) =>
+      // Get the bond from the bond collection by its key id
+      val bondQuery = MongoDbObject("id" -> id)
 
       val bondCursor = MongoHelper.bondCollection.find(bondQuery)
 
       val bond = MongoHelper.asBond(bondCursor)
 
+      // Price the bond
       val valuator = new SimpleBondValuator(bond, Helper.yieldCurve)
 
       val price = valuator.price
 
-      new SimpleBond(bond.id,bond.coupon,bond.freq,bond.tenor,price)
-    }.reduce(sum)
+      // Update portfolio price
+      sum + price
+    }
 
-    MongoHelper.updatePrice(job.portfId,output.maturity)
+    // Update the portfolio price in the database
+    MongoHelper.updatePrice(portfId,value)
 
     val t1 = System.nanoTime
 
-    Job(job.portfId, null, Result(job.portfId, output.maturity, bondIds.size, t0, t1))
-  }
-
-  /**
-    * Reduces to simple bond prices.
-    * @param a Bond a
-    * @param b Bond b
-    * @return Reduced bond price
-    */
-  def sum(a: SimpleBond, b:SimpleBond) : SimpleBond = {
-    new SimpleBond(0,0,0,0,a.maturity+b.maturity)
+    Job(portfId,job.bonds,Result(portfId,value,bondIds.size,t0,t1))
   }
 }

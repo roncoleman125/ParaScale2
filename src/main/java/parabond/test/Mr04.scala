@@ -26,7 +26,7 @@
  */
 package parabond.test
 
-import casa.MongoDbObject
+import parabond.casa.MongoDbObject
 import parabond.util.{MongoHelper, Result}
 import parabond.mr._
 import parabond.util.Constant._

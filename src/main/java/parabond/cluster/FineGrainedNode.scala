@@ -24,107 +24,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package parabond.test
+package parabond.cluster
 
-import casa.MongoDbObject
+import org.apache.log4j.Logger
+import parabond.casa.MongoDbObject
+import parabond.entry.SimpleBond
+import parabond.util.Constant.{NUM_PORTFOLIOS, PORTF_NUM}
 import parabond.util.{Helper, Job, MongoHelper, Result}
 import parabond.value.SimpleBondValuator
-import scala.util.Random
-import parabond.entry.SimpleBond
-import parascale.util._
-import parabond.util.Constant.{DIAGS_DIR, PORTF_NUM}
+import parascale.util.getPropertyOrElse
 import scala.collection.parallel.CollectionConverters._
 
-/** Test driver */
-object Par05 {
-  def main(args: Array[String]): Unit = {
-    (new Par05).test
-  }
+/**
+  * Runs a fine grain node which retrieves the portfolios in random order and prices the bonds as
+  * a parallel collection.
+  */
+object FineGrainedNode extends App {
+  val LOG = Logger.getLogger(getClass)
+
+  val seed = getPropertyOrElse("seed",0)
+  val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
+  val n = getPropertyOrElse("n", PORTF_NUM)
+  val begin = getPropertyOrElse("begin", 0)
+
+  val checkIds = checkReset(n)
+
+  val analysis = new FineGrainedNode analyze(Partition(n=n, begin=begin))
+
+  report(LOG, analysis, checkIds)
 }
 
 /**
- * This class uses parallel collections to price n portfolios in the
- * parabond database using the composite fine-grain algorithm. This class
-  * differs from Par04 in that it parallel processes the bond valuations.
- * @author Ron Coleman
- */
-class Par05 {
-  /** Initialize the random number generator */
-  val ran = new Random(0)   
-
-  /** Runs the unit test */
-  def test {
-    // Set the number of portfolios to analyze
-    val n = getPropertyOrElse("n",PORTF_NUM)
-
-    val me =  this.getClass().getSimpleName()
-
-    val dir = getPropertyOrElse("dir",DIAGS_DIR)
-
-    val outFile = dir + me + "-dat.txt"
-    
-    val fos = new java.io.FileOutputStream(outFile,true)
-    val os = new java.io.PrintStream(fos)
-    
-    os.print(me+" "+ "N: "+n+" ")
-
-    val details = getPropertyOrElse("details",parseBoolean,false)
-    
-    // Build the portfolio list    
-    val jobs = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null, null)
-    
-    // Build the portfolio list
-    val t0 = System.nanoTime
-    val results = jobs.par.map(price)
-    val t1 = System.nanoTime
-
-    // Generate the detailed output report
-    if(details) {
-      println("%6s %10.10s %-5s %-2s".format("PortId","Price","Bonds","dt"))
-
-      results.foreach { output =>
-        val id = output.result.portfId
-
-        val dt = (output.result.t1 - output.result.t0) / 1000000000.0
-
-        val bondCount = output.result.bondCount
-
-        val price = output.result.value
-
-        println("%6d %10.2f %5d %6.4f %12d %12d".format(id, price, bondCount, dt, output.result.t1 - t0, output.result.t0 - t0))
-      }
-    }
-
-    val dt1 = results.foldLeft(0.0) { (sum,result) =>
-      sum + (result.result.t1 - result.result.t0)
-
-    } / 1000000000.0
-
-    val dtN = (t1 - t0) / 1000000000.0
-
-    val speedup = dt1 / dtN
-
-    val numCores = Runtime.getRuntime().availableProcessors()
-
-    val e = speedup / numCores
-
-    os.println("dt(1): %7.4f  dt(N): %7.4f  cores: %d  R: %5.2f  e: %5.2f ".
-        format(dt1,dtN,numCores,speedup,e))
-
-    os.flush
-
-    os.close
-
-    println(me+" DONE! %d %7.4f".format(n,dtN))
-  }
-
+  * Prices one bond per core then rolls these prices into the portfolio price.
+  */
+class FineGrainedNode extends BasicNode {
   /**
     * Price a portfolio
-    * @param job Portfolio
+    * @param job Portfolio ids
     * @return Valuation
     */
-  def price(job: Job): Job = {
-
+  override def price(job: Job): Job = {
     // Value each bond in the portfolio
     val t0 = System.nanoTime
 
@@ -140,8 +79,6 @@ class Par05 {
 
     val bondIds = for(i <- 0 until bids.size) yield Job(bids(i),null,null)
 
-//    val bondIds = asList(portfsCursor,"instruments")
-
     val output = bondIds.par.map { bondId =>
       // Get the bond from the bond collection
       val bondQuery = MongoDbObject("id" -> bondId.portfId)
@@ -155,13 +92,13 @@ class Par05 {
       val price = valuator.price
 
       new SimpleBond(bond.id,bond.coupon,bond.freq,bond.tenor,price)
-    }.par.reduce(sum)
+    }.reduce(sum)
 
     MongoHelper.updatePrice(job.portfId,output.maturity)
 
     val t1 = System.nanoTime
 
-    Job(job.portfId,null,Result(job.portfId,output.maturity,bondIds.size,t0,t1))
+    Job(job.portfId, null, Result(job.portfId, output.maturity, bondIds.size, t0, t1))
   }
 
   /**
@@ -172,5 +109,5 @@ class Par05 {
     */
   def sum(a: SimpleBond, b:SimpleBond) : SimpleBond = {
     new SimpleBond(0,0,0,0,a.maturity+b.maturity)
-  }  
+  }
 }

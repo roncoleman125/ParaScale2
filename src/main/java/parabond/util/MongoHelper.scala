@@ -1,10 +1,13 @@
 package parabond.util
 
+import ch.qos.logback.classic.{Level, Logger, LoggerContext}
 import com.mongodb.client.FindIterable
 import org.bson.Document
-import casa.{MongoConnection, MongoDbObject}
+import org.slf4j.LoggerFactory
+import parabond.casa.{MongoConnection, MongoDbObject}
 import parabond.entry.SimpleBond
 import parascale.util.getPropertyOrElse
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.Random
@@ -30,6 +33,12 @@ object MongoHelper {
   case class PortfIdToBondsMap(portfId: Int, bonds: List[SimpleBond])
 
   case class Bonds(list: List[SimpleBond])
+
+  def hush(): Unit = {
+    val loggerContext = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
+    val rootLogger = loggerContext.getLogger("org.mongodb.driver")
+    rootLogger.setLevel(Level.OFF)
+  }
 
   /**
    * Disables Mongo logging.
