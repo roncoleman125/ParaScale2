@@ -26,9 +26,27 @@
  */
 package parabond.cluster
 
+import scala.util.Random
+
 /**
   * Base node class.
   */
-abstract class Node {
-  def analyze(partition: Partition): Analysis
+abstract class Node(partition: Partition) {
+  val begin = partition.begin
+  val end = begin + partition.n
+
+  def analyze(): Analysis
+
+  /**
+    * Gets the sequence randomized deck of portfolio ids to analyze.
+    * @return Deck of portfolio ids
+    */
+  def getDeck(): List[Int] = {
+    val ran = new Random(partition.seed)
+
+    val sample = (begin to end).toList
+
+    val deck = ran.shuffle(sample)
+    deck
+  }
 }

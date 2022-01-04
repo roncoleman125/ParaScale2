@@ -31,7 +31,6 @@ import parabond.casa.MongoDbObject
 import parabond.util.Constant.{NUM_PORTFOLIOS, PORTF_NUM}
 import parabond.util.{Job, MongoHelper}
 import parascale.util.getPropertyOrElse
-import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
 /**
@@ -47,7 +46,7 @@ object CoarseGrainedNode extends App {
 
   val checkIds = checkReset(n)
 
-  val analysis = new CoarseGrainedNode analyze(Partition(n=n, begin=begin))
+  val analysis = new CoarseGrainedNode(Partition(n=n, begin=begin)) analyze
 
   // Validate the check id by...
   // 1. Testing a random portfolio against the check value
@@ -69,36 +68,29 @@ object CoarseGrainedNode extends App {
 /**
   * Prices a block of portfolios per core.
   */
-class CoarseGrainedNode extends Node {
+class CoarseGrainedNode(partition: Partition) extends Node(partition) {
   /**
     * Prices each portfolio
     * @return
     */
-  def basic = new BasicNode
+  def basic = new BasicNode(partition)
 
   /**
     * Runs the portfolio analyses.
     * @return Analysis
     */
-  def analyze(partition: Partition): Analysis = {
+  def analyze(): Analysis = {
     // Clock in
     val t0 = System.nanoTime
 
-    // Seed must be same for every host in cluster as this establishes
-    val ran = new Random(partition.seed)
+    val deck = getDeck()
 
-    // Shuffled deck of portfolios -- random sample without replacement
-    val sample = (0 until partition.size).toList
-    val deck = ran.shuffle(sample)
+    // The jobs working we're on, k+1 since portf ids are 1-based
+    assert(deck.size == (end-begin+1))
 
-    // Number of portfolios to analyze
-    // Start and end (inclusive) indices in analysis sequence
-    val begin = partition.begin
-    val end = begin + partition.n
-
-    // Indices in the deck we're working on
-    // Note: k+1 since portf ids are 1-based
-    val jobs = for(k <- begin until end) yield Job(deck(k) + 1)
+    val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
+      jobs ++ List(new Job(k))
+    }
 
     // Block the indices according to number of cores: each core gets a single clock.
     val numCores = getPropertyOrElse("cores",Runtime.getRuntime.availableProcessors)
@@ -108,14 +100,14 @@ class CoarseGrainedNode extends Node {
     // Fixed proposed by R.A. Dartey, 26 May 2021.
     val blksize = (partition.n.toDouble / numCores).ceil.toInt
 
-    val blocks = for(core <- 0 until numCores) yield {
-      val start = core * blksize
+    val blocks = for(coreno <- 0 until numCores) yield {
+      val start = coreno * blksize
       val finish = start + blksize
 
       jobs.slice(start, finish)
     }
 
-    // Run the analysis
+    // .par needs to go here otherwise compiler rejects
     val results = blocks.par.map(price)
 
     // Need Seq[Data], not ParSeq[Seq[Data]], for reporting and compiler specs

@@ -32,6 +32,8 @@ import parascale.util.getPropertyOrElse
 import parabond.util.Constant.{NUM_PORTFOLIOS, PORTF_NUM}
 import parabond.util.MongoHelper
 
+import scala.util.Random
+
 package object cluster {
   /**
     * Converts nano-seconds to seconds implicitly.
@@ -114,66 +116,36 @@ package object cluster {
   /** A portfolio with a negative has not been priced */
   val CHECK_VALUE = -1
 
+  /** Check at most this many portfolios */
+  val CHECK_MAX = 1000
+
   /**
     * Resets the check portfolios to the "not priced" state.
     * @param n Number of portfolios
-    * @param begin Offset
     * @param seed Random seed
-    * @param size Number of portfolios in the universe where n <= size
     * @return List of portfolios to check.
     */
   def checkReset(n: Int, seed: Int=0, size: Int=NUM_PORTFOLIOS): List[Int] = {
+    assert(n > 0)
+
+    // Check at least 1 but no more than CHECK_MAX
+    val numChecks = Math.max(1,Math.min(CHECK_MAX, (n * CHECK_RATE+0.5).toInt))
+
     import scala.util.Random
-
-    Random.setSeed(n)
-    val indices = Random.shuffle((0 until n).toList)
-
-    val numChecks = 1 max (n * CHECK_RATE).toInt
-
-    Random.setSeed(seed)
-    val deck = Random.shuffle((0 until size).toList)
+    val ran = new Random(seed)
 
     val checkIds = (0 until numChecks).foldLeft(List[Int]()) { (checkIds, k) =>
-      val index = indices(k)
+      // +1 as portfolio ids are 1-based
+      val portfId = ran.nextInt(n)+1
 
-      val portfId = deck(index) + 1
-
-      MongoHelper.updatePrice(portfId,CHECK_VALUE)
+      // Update the portfolio -- if no portfolio updated, no point trying to recover
+      val result = MongoHelper.updatePrice(portfId,CHECK_VALUE)
+      assert(result > 0)
 
       portfId :: checkIds
     }
 
-    checkIds
-  }
-
-  /**
-    * Resets the check portfolios to the "not priced" state.
-    * @param n Number of portfolios
-    * @param begin Offset
-    * @param seed Random seed
-    * @param size Number of portfolios in the universe where n <= size
-    * @return List of portfolios to check.
-    */
-  def checkReset2(n: Int, seed: Int=0, size: Int=NUM_PORTFOLIOS): List[Int] = {
-    import scala.util.Random
-
-    Random.setSeed(seed)
-    val deck = Random.shuffle((0 until size).toList)
-
-    val checkIds = (0 until n).foldLeft(List[Int]()) { (checkIds, k) =>
-      val lottery = Random.nextDouble
-
-      if(lottery <= CHECK_RATE) {
-        val portfId = deck(k) + 1
-
-        MongoHelper.updatePrice(portfId, CHECK_VALUE)
-
-        portfId :: checkIds
-      }
-      else
-        checkIds
-    }
-
+    assert(checkIds.size > 0)
     checkIds
   }
 

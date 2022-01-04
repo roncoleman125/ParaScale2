@@ -35,6 +35,8 @@ import parabond.util.{Helper, Job, MongoHelper, Result}
 import parabond.util.Constant.NUM_PORTFOLIOS
 import parabond.value.SimpleBondValuator
 import parascale.util.getPropertyOrElse
+
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
@@ -52,7 +54,7 @@ object MemoryBoundNode extends App {
 
   val checkIds = checkReset(n)
 
-  val analysis = new MemoryBoundNode analyze(Partition(n=n, begin=begin))
+  val analysis = new MemoryBoundNode (Partition(n=n, begin=begin)) analyze()
 
   report(LOG, analysis, checkIds)
 }
@@ -60,29 +62,18 @@ object MemoryBoundNode extends App {
 /**
   * Prices one portfolio per core by first loading all the bonds of a portfolio into memory.
   */
-class MemoryBoundNode extends Node {
-  def analyze(partition: Partition): Analysis = {
+class MemoryBoundNode(partition: Partition) extends Node(partition) {
+  def analyze(): Analysis = {
     // Clock in
     val t0 = System.nanoTime
 
-    // Seed must be same for every host in cluster as this establishes
-    val ran = new Random(partition.seed)
+    val deck = getDeck()
 
-    // Shuffled deck of portfolios -- random sample without replacement
-    val sample = (0 until partition.size).toList
-    val deck = ran.shuffle(sample)
-
-    // Number of portfolios to analyze
-    // Start and end (inclusive) in analysis sequence
-    val begin = partition.begin
-    val end = begin + partition.n
-
-    // Indices in the deck we're working on
-    // Note: k+1 since portf ids are 1-based
-    val portfIds = for(k <- begin until end) yield Job(deck(k) + 1)
-
-    // Get the proper collection depending on whether we're measuring T1 or TN
-    val jobs = if(partition.para) loadPortfsParallel(portfIds.toList).par else loadPortfsSequential(portfIds)
+    // The jobs working we're on, k+1 since portf ids are 1-based
+    assert(deck.size == (end-begin+1))
+    val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
+      jobs ++ List(new Job(deck(k)))
+    }.par
 
     // Run the analysis
     val results = jobs.map(price)
@@ -113,7 +104,7 @@ class MemoryBoundNode extends Node {
     val t1 = System.nanoTime
 
     // Return the result for this portfolio
-    Job(work.portfId,null,Result(work.portfId,value,work.bonds.size,t0,t1))
+    new Job(work.portfId,null,Result(work.portfId,value,work.bonds.size,t0,t1))
   }
 
   /**
@@ -174,7 +165,7 @@ class MemoryBoundNode extends Node {
       val result = Await.result(future, MAX_WAIT_TIME.seconds)
 
       // Use null because we don't have result yet -- completed when we analyze the portfolio
-      Job(result.portfId, result.bonds, null) :: list
+      new Job(result.portfId, result.bonds, null) :: list
     }
 
     list

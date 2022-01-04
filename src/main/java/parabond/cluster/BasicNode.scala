@@ -36,14 +36,13 @@ import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
 /**
-  * Runs a basic node which retrieves the portfolios in random order and prices the portfolios
-  * as a parallel collection.
+  * Tests a basic node which retrieves portfolios and prices them as a parallel collection.
+  * @author Ron.Coleman
   */
 object BasicNode extends App {
   val LOG = Logger.getLogger(getClass)
 
   // Set the run parameters
-  val seed = getPropertyOrElse("seed",0)
   val n = getPropertyOrElse("n", PORTF_NUM)
   val begin = getPropertyOrElse("begin", 0)
 
@@ -51,8 +50,7 @@ object BasicNode extends App {
   val checkIds = checkReset(n)
 
   // Run the analysis
-  val partition = Partition(n, begin)
-  val analysis = new BasicNode analyze(partition)
+  val analysis = new BasicNode(Partition(n, begin)) analyze
 
   report(LOG, analysis, checkIds)
 }
@@ -60,28 +58,20 @@ object BasicNode extends App {
 /**
   * Prices one portfolio per core using the basic or "naive" algorithm.
   */
-class BasicNode extends Node {
-  def analyze(partition: Partition): Analysis = {
+class BasicNode(partition: Partition) extends Node(partition) {
+  override def analyze(): Analysis = {
     // Clock in
     val t0 = System.nanoTime
 
-    // Seed must be same for every host in cluster as this establishes
-    val ran = new Random(partition.seed)
-
-    // Shuffled deck of portfolios -- random sample without replacement
-    val sample = (0 until partition.size).toList
-    val deck = ran.shuffle(sample)
-
-    // Number of portfolios to analyze
-    // Start and end (inclusive) indices in analysis sequence
-    val begin = partition.begin
-    val end = begin + partition.n
+    // Contains the randomize sequence of partfolio ids in the partition
+    val deck = getDeck()
 
     // The jobs working we're on, k+1 since portf ids are 1-based
-    val portfIds = for(k <- begin until end) yield Job(deck(k) + 1)
+    assert(deck.size == (end-begin+1))
 
-    // Get the proper collection depending on whether we're measuring T1 or TN
-    val jobs = if(partition.para) portfIds.par else portfIds
+    val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
+      jobs ++ List(new Job(deck(k)))
+    }.par
 
     // Run the analysis
     val results = jobs.map(price)

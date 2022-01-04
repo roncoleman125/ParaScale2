@@ -59,12 +59,12 @@ object Result {
   */
 case class Result(portfId: Int, value: Double, bondCount: Int, t0: Long, t1: Long) extends Serializable
   
-/**
- * Data mapped between input and output of price method
- */
-object Job {
-  def apply(portfId: Int): Job = Job(portfId, null ,null)
-}
+///**
+// * Data mapped between input and output of price method
+// */
+//object Job {
+//  def apply(portfId: Int): Job = new Job(portfId, null ,null)
+//}
 
 /**
   * Job to be processed.
@@ -72,4 +72,6 @@ object Job {
   * @param bonds null or bonds in the job
   * @param result null or result of analysis
   */
-case class Job(portfId: Int, bonds: List[SimpleBond], result: Result)
+class Job(val portfId: Int, val bonds: List[SimpleBond], val result: Result) {
+  def this(portfId: Int) = this(portfId, null, null)
+}

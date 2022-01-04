@@ -36,4 +36,4 @@ import parabond.util.Constant.NUM_PORTFOLIOS
   * @param size Size of the portfolio database from which to draw randomly
   * @param para If true use parallel collections, else use serial collections
   */
-case class Partition(n: Int, begin: Int, seed: Int=0, para: Boolean=true, size: Int=NUM_PORTFOLIOS) extends Serializable
+case class Partition(n: Int, begin: Int, seed: Int=0, size: Int=NUM_PORTFOLIOS) extends Serializable

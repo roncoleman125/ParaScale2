@@ -49,7 +49,7 @@ object FineGrainedNode extends App {
 
   val checkIds = checkReset(n)
 
-  val analysis = new FineGrainedNode analyze(Partition(n=n, begin=begin))
+  val analysis = new FineGrainedNode(Partition(n=n, begin=begin)) analyze
 
   report(LOG, analysis, checkIds)
 }
@@ -57,7 +57,7 @@ object FineGrainedNode extends App {
 /**
   * Prices one bond per core then rolls these prices into the portfolio price.
   */
-class FineGrainedNode extends BasicNode {
+class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
   /**
     * Price a portfolio
     * @param job Portfolio ids
@@ -98,7 +98,7 @@ class FineGrainedNode extends BasicNode {
 
     val t1 = System.nanoTime
 
-    Job(job.portfId, null, Result(job.portfId, output.maturity, bondIds.size, t0, t1))
+    new Job(job.portfId, null, Result(job.portfId, output.maturity, bondIds.size, t0, t1))
   }
 
   /**

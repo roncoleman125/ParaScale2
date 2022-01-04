@@ -280,6 +280,9 @@ object MongoHelper {
    */
   def updatePrice(portfId: Int, price: Double): Long = {
     val portfQuery = MongoDbObject("id" -> portfId)
+    val portfolio = portfolioCollection.find(portfQuery)
+    if(portfolio == null)
+      return -1
 
     val newPrice = MongoDbObject("$set" -> MongoDbObject("price" -> price))
 
