@@ -71,7 +71,7 @@ class Par05 {
     val details = getPropertyOrElse("details",parseBoolean,false)
     
     // Build the portfolio list    
-    val jobs = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null, null)
+    val jobs = for(i <- 0 until n) yield new Job(ran.nextInt(100000)+1,null, null)
     
     // Build the portfolio list
     val t0 = System.nanoTime
@@ -138,7 +138,7 @@ class Par05 {
     // Get the bonds in the portfolio
     val bids = MongoHelper.asList(portfsCursor,"instruments")
 
-    val bondIds = for(i <- 0 until bids.size) yield Job(bids(i),null,null)
+    val bondIds = for(i <- 0 until bids.size) yield new Job(bids(i),null,null)
 
 //    val bondIds = asList(portfsCursor,"instruments")
 
@@ -161,7 +161,7 @@ class Par05 {
 
     val t1 = System.nanoTime
 
-    Job(job.portfId,null,Result(job.portfId,output.maturity,bondIds.size,t0,t1))
+    new Job(job.portfId,null,Result(job.portfId,output.maturity,bondIds.size,t0,t1))
   }
 
   /**

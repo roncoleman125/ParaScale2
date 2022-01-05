@@ -148,7 +148,7 @@ class Ser03 {
     val t1 = System.nanoTime
 
     // Return the result for this portfolio
-    Job(input.portfId,null,Result(input.portfId,value,input.bonds.size,t0,t1))
+    new Job(input.portfId,null,Result(input.portfId,value,input.bonds.size,t0,t1))
   }
 
   /**
@@ -158,10 +158,10 @@ class Ser03 {
   def loadJobs(n: Int): List[Job] = {
     val portfIds = for(i <- 0 until n) yield ran.nextInt(100000)+1
     
-    val list = portfIds.foldLeft (List[Job]()) { (jobs,portfId) =>
+    val list = portfIds.foldLeft (List[Job]()) { (jobs, portfId) =>
       val intermediate = MongoHelper.fetchBonds(portfId)
       
-      Job(portfId,intermediate.bonds,null) :: jobs
+      new Job(portfId,intermediate.bonds,null) :: jobs
     }
     
     list

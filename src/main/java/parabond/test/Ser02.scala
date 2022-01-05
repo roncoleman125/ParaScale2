@@ -67,7 +67,7 @@ class Ser02 {
     val details = getPropertyOrElse("details", false)
     
     // Build the portfolio list    
-    val jobs = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null,null)
+    val jobs = for(i <- 0 until n) yield new Job(ran.nextInt(100000)+1,null,null)
     
     val list = jobs.toList
    
@@ -160,6 +160,6 @@ class Ser02 {
   
     val t1 = System.nanoTime
     
-    Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1))
+    new Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1))
   }
 }

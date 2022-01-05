@@ -155,7 +155,7 @@ class Par01 {
     val t1 = System.nanoTime
 
     // Return the result for this portfolio
-    Job(job.portfId,null,Result(job.portfId,value,job.bonds.size,t0,t1))
+    new Job(job.portfId,null,Result(job.portfId,value,job.bonds.size,t0,t1))
   }  
   
   /**
@@ -170,7 +170,7 @@ class Par01 {
     { (portfIdBonds,portfId) =>
       val intermediate = MongoHelper.fetchBonds(portfId)
       
-      Job(portfId,intermediate.bonds,null) :: portfIdBonds
+      new Job(portfId,intermediate.bonds,null) :: portfIdBonds
     }
     
     list
@@ -181,7 +181,7 @@ class Par01 {
    */
   def loadPortfsParFold(n: Int): List[Job] = {
     // Initialize the portfolios to retrieve
-    val portfs = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null,null)
+    val portfs = for(i <- 0 until n) yield new Job(ran.nextInt(100000)+1,null,null)
     
     val z = List[Job]()
     
@@ -203,7 +203,7 @@ class Par01 {
         case data : Job =>
           val bonds = MongoHelper.fetchBonds(data.portfId)
           
-          List(Job(data.portfId,bonds.bonds,null)) ++ opa
+          List(new Job(data.portfId,bonds.bonds,null)) ++ opa
       }         
 
     }
@@ -234,7 +234,7 @@ class Par01 {
       import scala.concurrent.duration._
       val result = Await.result(future, 100 seconds)
 
-      list ++ List(Job(result.portfId, result.bonds, null))
+      list ++ List(new Job(result.portfId, result.bonds, null))
     }
 
     list

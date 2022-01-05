@@ -79,7 +79,7 @@ class Par00 {
     val details = getPropertyOrElse("details",parseBoolean,false)
 
     // Build the portfolio list    
-    val portfIds = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null,null)
+    val portfIds = for(i <- 0 until n) yield new Job(ran.nextInt(100000)+1,null,null)
 
     // Parallel price the portfolios
     val t0 = System.nanoTime
@@ -168,6 +168,6 @@ class Par00 {
     
     val t1 = System.nanoTime
     
-    Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1))
+    new Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1))
   }
 }

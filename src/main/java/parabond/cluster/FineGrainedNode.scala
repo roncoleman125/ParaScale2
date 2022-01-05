@@ -60,15 +60,15 @@ object FineGrainedNode extends App {
 class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
   /**
     * Price a portfolio
-    * @param job Portfolio ids
+    * @param task Portfolio ids
     * @return Valuation
     */
-  override def price(job: Job): Job = {
+  override def price(task: Job): Job = {
     // Value each bond in the portfolio
     val t0 = System.nanoTime
 
     // Retrieve the portfolio
-    val portfId = job.portfId
+    val portfId = task.portfId
 
     val portfsQuery = MongoDbObject("id" -> portfId)
 
@@ -77,7 +77,7 @@ class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
     // Get the bonds in the portfolio
     val bids = MongoHelper.asList(portfsCursor,"instruments")
 
-    val bondIds = for(i <- 0 until bids.size) yield Job(bids(i),null,null)
+    val bondIds = for(i <- 0 until bids.size) yield new Job(bids(i),null,null)
 
     val output = bondIds.par.map { bondId =>
       // Get the bond from the bond collection
@@ -94,11 +94,11 @@ class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
       new SimpleBond(bond.id,bond.coupon,bond.freq,bond.tenor,price)
     }.reduce(sum)
 
-    MongoHelper.updatePrice(job.portfId,output.maturity)
+    MongoHelper.updatePrice(task.portfId,output.maturity)
 
     val t1 = System.nanoTime
 
-    new Job(job.portfId, null, Result(job.portfId, output.maturity, bondIds.size, t0, t1))
+    new Job(task.portfId, null, Result(task.portfId, output.maturity, bondIds.size, t0, t1))
   }
 
   /**

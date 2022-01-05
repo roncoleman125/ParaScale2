@@ -145,7 +145,7 @@ class Par06 {
 
     val t1 = System.nanoTime
 
-    Job(job.portfId,null,Result(job.portfId,output.maturity,job.bonds.size,t0,t1))
+    new Job(job.portfId,null,Result(job.portfId,output.maturity,job.bonds.size,t0,t1))
   }  
 
   def sum(a: SimpleBond, b:SimpleBond) : SimpleBond = {
@@ -158,7 +158,7 @@ class Par06 {
    */
   def loadPortfsParFold(n: Int): List[Job] = {
     // Initialize the portfolios to retrieve
-    val portfs = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null,null)
+    val portfs = for(i <- 0 until n) yield new Job(ran.nextInt(100000)+1,null,null)
     
     val z = List[Job]()
     
@@ -179,7 +179,7 @@ class Par06 {
         case x : Job =>
           val intermediate = MongoHelper.fetchBonds(x.portfId) 
           
-          List(Job(x.portfId,intermediate.bonds,null)) ++ opa
+          List(new Job(x.portfId,intermediate.bonds,null)) ++ opa
       }         
 
     }

@@ -172,7 +172,7 @@ object MongoHelper {
 
       value match {
         case dubble: java.lang.Double =>
-          dubble.asInstanceOf[java.lang.Double]
+          dubble//.asInstanceOf[java.lang.Double]
 
         case _ =>
           Double.NaN

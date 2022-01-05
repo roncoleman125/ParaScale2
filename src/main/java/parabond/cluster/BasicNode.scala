@@ -32,7 +32,6 @@ import parabond.util.{Helper, Job, MongoHelper, Result}
 import parabond.util.Constant.PORTF_NUM
 import parabond.value.SimpleBondValuator
 import parascale.util.getPropertyOrElse
-import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
 /**
@@ -89,19 +88,19 @@ class BasicNode(partition: Partition) extends Node(partition) {
     * 2) fetch bonds in that portfolio.<p>
     * After the second fetch the bond is then valued and added to the portfoio value
     */
-  def price(job: Job): Job = {
+  def price(task: Job): Job = {
     // Value each bond in the portfolio
     val t0 = System.nanoTime
 
     // Retrieve the portfolio
-    val portfId = job.portfId
+    val portfId = task.portfId
 
-    val portfsQuery = MongoDbObject("id" -> portfId)
+    val portfQuery = MongoDbObject("id" -> portfId)
 
-    val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
+    val portfCursor = MongoHelper.portfolioCollection.find(portfQuery)
 
     // Get the bonds ids in the portfolio
-    val bondIds = MongoHelper.asList(portfsCursor,"instruments")
+    val bondIds = MongoHelper.asList(portfCursor,"instruments")
 
     // Price each bond and sum all the prices
     val value = bondIds.foldLeft(0.0) { (sum, id) =>
@@ -126,6 +125,6 @@ class BasicNode(partition: Partition) extends Node(partition) {
 
     val t1 = System.nanoTime
 
-    Job(portfId,job.bonds,Result(portfId,value,bondIds.size,t0,t1))
+    new Job(portfId,task.bonds,Result(portfId,value,bondIds.size,t0,t1))
   }
 }

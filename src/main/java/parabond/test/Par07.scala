@@ -79,7 +79,7 @@ class Par07 {
     val numCores = Runtime.getRuntime().availableProcessors()
     
     val coarseJobs = (1 to numCores).foldLeft(List[List[Job]]()) { (coarses, _) =>
-          val jobs = for(i <- 0 until (n / numCores)) yield Job(ran.nextInt(100000)+1,null, null)
+          val jobs = for(i <- 0 until (n / numCores)) yield new Job(ran.nextInt(100000)+1,null, null)
                    
           jobs.toList :: coarses
     }
@@ -149,7 +149,7 @@ class Par07 {
       
       val t1 = System.nanoTime
     
-      Job(portfId,null,Result(portfId,value,bonds.size,t0,t1)) :: results
+      new Job(portfId,null,Result(portfId,value,bonds.size,t0,t1)) :: results
     }
  
     outputs
@@ -180,7 +180,7 @@ class Par07 {
         list ++ List(bond)
       }    
       
-      xs ++ List(Job(portfId,bonds,null))
+      xs ++ List(new Job(portfId,bonds,null))
     }
     
     outputs
@@ -192,9 +192,9 @@ class Par07 {
    */
   def loadPortfsParFold(n: Int): List[Job] = {
     // Initialize the portfolios to retrieve
-    val jobs = for(i <- 0 until n) yield Job(ran.nextInt(100000)+1,null,null)
+    val jobs = for(i <- 0 until n) yield new Job(ran.nextInt(100000)+1,null,null)
 
-    val list = jobs.par.fold(List[Job]()) { (a,b) =>
+    val list = jobs.par.fold(List[Job]()) { (a, b) =>
       // Make a into list (it already is one but this tells Scala it's one)
       // Seems a = z initially
       val opa = a match {
@@ -211,7 +211,7 @@ class Par07 {
         case job: Job =>
           val intermediate = MongoHelper.fetchBonds(job.portfId)
           
-          List(Job(job.portfId,intermediate.bonds,null)) ++ opa
+          List(new Job(job.portfId,intermediate.bonds,null)) ++ opa
       }         
 
     }

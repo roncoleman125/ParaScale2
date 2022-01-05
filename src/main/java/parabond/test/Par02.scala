@@ -74,7 +74,7 @@ class Par02 {
     val results = jobs.par.map(price)
 
     val value = results.par.reduce { (a: Job, b:Job) =>
-      Job(0,null,Result(0,a.result.value + b.result.value,0,0,0))
+      new Job(0,null,Result(0,a.result.value + b.result.value,0,0,0))
     }
     val t1 = System.nanoTime
 
@@ -123,7 +123,7 @@ class Par02 {
 
     val t1 = System.nanoTime
 
-    Job(job.portfId,null,Result(job.portfId,bondsValue.maturity,job.bonds.size,t0,t1))
+    new Job(job.portfId,null,Result(job.portfId,bondsValue.maturity,job.bonds.size,t0,t1))
   }
 
   /**
@@ -149,7 +149,7 @@ class Par02 {
     { (portfIdBonds,portfId) =>
       val intermediate = MongoHelper.fetchBonds(portfId)
       
-      Job(portfId,intermediate.bonds,null) :: portfIdBonds
+      new Job(portfId,intermediate.bonds,null) :: portfIdBonds
     }
     
     list
@@ -180,7 +180,7 @@ class Par02 {
       import scala.concurrent.duration._
       val result: PortfIdToBondsMap = Await.result(future, 100 seconds)
 
-      list ++ List(Job(result.portfId, result.bonds, null))
+      list ++ List(new Job(result.portfId, result.bonds, null))
     }
   }
 }

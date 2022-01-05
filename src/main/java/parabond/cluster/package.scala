@@ -155,19 +155,33 @@ package object cluster {
     * @return List of unpriced portfolios
     */
   def check(portfIds: List[Int]): List[Int] = {
+    // Missed portfolios will either not have a portfolio or a valid price
     val misses = portfIds.foldLeft(List[Int]()) { (misses, portfId) =>
-      val portfsQuery = MongoDbObject("id" -> portfId)
+      // Portfolio not found is same as not priced
+      val query = MongoDbObject("id" -> portfId)
 
-      val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
-
-      val price = MongoHelper.asDouble(portfsCursor,"price")
-
-      if(price == CHECK_VALUE)
+      val cursor = MongoHelper.portfolioCollection.find(query)
+      if(cursor == null) {
         portfId :: misses
-      else
-        misses
+      }
+        // if we get here the portfolio is present
+      else {
+        // An invalid price same as missing
+        val price = MongoHelper.asDouble(cursor,"price")
+        if(isInvalid(price))
+          portfId :: misses
+        else
+          misses
+      }
     }
 
     misses
   }
+
+  /**
+    * Tests price against valid prices.
+    * @param price Price to test
+    * @return True if price is missing, false otherwise
+    */
+  def isInvalid(price: Double) = price.isNaN || price <= 0.0
 }

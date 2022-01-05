@@ -54,7 +54,7 @@ object MemoryBoundNode extends App {
 
   val checkIds = checkReset(n)
 
-  val analysis = new MemoryBoundNode (Partition(n=n, begin=begin)) analyze()
+  val analysis = new MemoryBoundNode(Partition(n=n, begin=begin)).analyze()
 
   report(LOG, analysis, checkIds)
 }
@@ -138,7 +138,7 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
         bonds ++ List(bond)
       }
 
-      Job(portfId,bonds,null) :: list
+      new Job(portfId,bonds,null) :: list
     }
 
     portfIdToBondsPairs

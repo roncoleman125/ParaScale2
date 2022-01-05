@@ -76,7 +76,7 @@ class Par04 {
     // Each core will get n/num_cores blocks of portfolios to price
     val blocks = (1 to numCores).foldLeft(List[List[Job]]()) { (jobs, _) =>
       // Build a list of portfolios
-      val portfIds = for(i <- 0 until (n / numCores)) yield Job(ran.nextInt(100000)+1,null, null)
+      val portfIds = for(i <- 0 until (n / numCores)) yield new Job(ran.nextInt(100000)+1,null, null)
 
       // portf is a list added as a list element to (not merged with!) the portfs list
       portfIds.toList :: jobs
@@ -156,7 +156,7 @@ class Par04 {
       
       val t1 = System.nanoTime
     
-      Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1)) :: results
+      new Job(portfId,null,Result(portfId,value,bondIds.size,t0,t1)) :: results
     }
  
     outputs
