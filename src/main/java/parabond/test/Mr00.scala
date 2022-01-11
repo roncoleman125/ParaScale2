@@ -27,7 +27,7 @@
 package parabond.test
 
 import parabond.mr._
-import parabond.util.Mongo
+import parabond.util.JavaMongoHelper
 
 /** Test driver */
 object Mr00 {
@@ -44,7 +44,7 @@ class Mr00 {
   /** Executes test */
   def test {
     // To completely hush mongo
-    Mongo.shush()
+    JavaMongoHelper.mongo()
 
     // Create the input of a list of Tuple2(portf id, curve coefficients).
     val input = (1 to 4).foldLeft(List[Int]()) { (list, p) =>

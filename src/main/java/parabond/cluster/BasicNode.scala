@@ -66,7 +66,7 @@ class BasicNode(partition: Partition) extends Node(partition) {
     val deck = getDeck()
 
     // The jobs working we're on, k+1 since portf ids are 1-based
-    assert(deck.size == (end-begin+1))
+    assert(deck.size == (end-begin))
 
     val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
       jobs ++ List(new Job(deck(k)))

@@ -28,7 +28,7 @@ package parabond.test
 
 import scala.util.Random
 import parabond.casa.MongoDbObject
-import parabond.util.{Helper, Job, Mongo, MongoHelper, Result}
+import parabond.util.{Helper, Job, JavaMongoHelper, MongoHelper, Result}
 import parabond.value.SimpleBondValuator
 import parascale.util._
 import parabond.util.Constant.{DIAGS_DIR, PORTF_NUM}
@@ -58,7 +58,7 @@ class Par00 {
   /** Runs the test */
   def test {
     // To completely hush mongo
-    Mongo.shush()
+    JavaMongoHelper.mongo()
 
     // Set the number of portfolios to analyze
     val n = getPropertyOrElse("n",PORTF_NUM)

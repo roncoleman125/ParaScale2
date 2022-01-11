@@ -32,9 +32,16 @@ import scala.util.Random
   * Base node class.
   */
 abstract class Node(partition: Partition) {
+  /** Beginning index */
   val begin = partition.begin
+
+  /* Exclusive end index */
   val end = begin + partition.n
 
+  /**
+    * Analyzes the portfolios.
+    * @return Analysis
+    */
   def analyze(): Analysis
 
   /**
