@@ -31,8 +31,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
  */
 object FuturePerfectNumberFinder extends App {
   (0 until candidates.length).foreach { index =>
-    val num = candidates(index)
-    println(num + " is perfect? "+ ask(isPerfectConcurrent,num))
+    val candidate = candidates(index)
+    println(candidate + " is perfect? "+ ask(isPerfectConcurrent,candidate))
   }
 
   /**
