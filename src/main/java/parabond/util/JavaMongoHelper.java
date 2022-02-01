@@ -40,7 +40,7 @@ public class JavaMongoHelper {
      * Shushes mongo diagnostics.
      * See https://stackoverflow.com/questions/30137564/how-to-disable-mongodb-java-driver-logging
      */
-    public static void mongo() {
+    public static void hush() {
         LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger rootLogger = loggerContext.getLogger("org.mongodb.driver");
         rootLogger.setLevel(Level.OFF);

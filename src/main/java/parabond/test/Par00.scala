@@ -58,7 +58,7 @@ class Par00 {
   /** Runs the test */
   def test {
     // To completely hush mongo
-    JavaMongoHelper.mongo()
+    JavaMongoHelper.hush()
 
     // Set the number of portfolios to analyze
     val n = getPropertyOrElse("n",PORTF_NUM)

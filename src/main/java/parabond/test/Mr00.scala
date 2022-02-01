@@ -44,7 +44,7 @@ class Mr00 {
   /** Executes test */
   def test {
     // To completely hush mongo
-    JavaMongoHelper.mongo()
+    JavaMongoHelper.hush()
 
     // Create the input of a list of Tuple2(portf id, curve coefficients).
     val input = (1 to 4).foldLeft(List[Int]()) { (list, p) =>
