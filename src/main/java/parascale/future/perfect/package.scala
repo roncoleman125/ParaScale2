@@ -27,7 +27,9 @@ package object perfect {
   val candidates: List[Long] =
     List(
       6,
+      7,
       28,
+      30,
       496,
       8128,
       33550336,
