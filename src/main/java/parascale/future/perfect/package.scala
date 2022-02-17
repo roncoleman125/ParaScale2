@@ -23,18 +23,21 @@
 package parascale.future
 
 package object perfect {
-  /** Candidate perfect numbers, see https://en.wikipedia.org/wiki/List_of_perfect_numbers */
+  /**
+    * Candidate perfect numbers
+    * See https://en.wikipedia.org/wiki/List_of_perfect_numbers
+    */
   val candidates: List[Long] =
     List(
       6,
-      7,
+      7,                    // Negative test
       28,
-      30,
+      30,                   // Negative test
       496,
       8128,
       33550336,
-      33550336+1,    // Negative case to test algorithm
-      8589869056L+1, // Ditto
+      33550336+1,           // Negative test
+      8589869056L+1,        // Negative test
       8589869056L,
       137438691328L,
       2305843008139952128L  // May take est. 170 years to prove.
