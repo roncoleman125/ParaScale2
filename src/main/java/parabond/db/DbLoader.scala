@@ -28,7 +28,7 @@ package parabond.db
 
 import scala.io.Source
 import parabond.casa.{MongoConnection, MongoDbObject}
-import parabond.util.{Constant, MongoHelper}
+import parabond.util.{Constant, JavaMongoHelper, MongoHelper}
 
 /**
  * This object load bonds and portfolios into the databasea. The bond parameters and ids
@@ -37,6 +37,8 @@ import parabond.util.{Constant, MongoHelper}
 object DbLoader {
   /** Create DB Connection which is the IP address of DB server and database name */
   //val mongodb = MongoConnection("127.0.0.1")("parabond")
+  JavaMongoHelper.hush()
+
   val mongodb = MongoConnection(MongoHelper.host)("parabond")
 
   /** Load bonds and portfolios */

@@ -51,7 +51,7 @@ abstract class Node(partition: Partition) {
   def getDeck(): List[Int] = {
     val ran = new Random(partition.seed)
 
-    val sample = (begin to end).toList
+    val sample = (begin until end).toList
 
     val deck = ran.shuffle(sample)
     deck

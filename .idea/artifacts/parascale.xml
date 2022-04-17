@@ -2,8 +2,6 @@
   <artifact type="jar" build-on-make="true" name="parascale">
     <output-path>$PROJECT_DIR$/out/artifacts/parascale</output-path>
     <root id="archive" name="parascale.jar">
-      <element id="extracted-dir" path="$PROJECT_DIR$/log4j-1.2.17.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$PROJECT_DIR$/mongo-java-driver-3.0.0.jar" path-in-jar="/" />
       <element id="module-output" name="ParaScale2" />
     </root>
   </artifact>

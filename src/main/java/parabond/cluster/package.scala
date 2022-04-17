@@ -126,7 +126,7 @@ package object cluster {
     * @return List of portfolios to check.
     */
   def checkReset(n: Int, seed: Int=0, size: Int=NUM_PORTFOLIOS): List[Int] = {
-    assert(n > 0)
+    assert(n > 0,s"bad parameter n=$n")
 
     // Check at least 1 but no more than CHECK_MAX
     val numChecks = Math.max(1,Math.min(CHECK_MAX, (n * CHECK_RATE+0.5).toInt))
@@ -140,12 +140,12 @@ package object cluster {
 
       // Update the portfolio -- if no portfolio updated, no point trying to recover
       val result = MongoHelper.updatePrice(portfId,CHECK_VALUE)
-      assert(result > 0)
+      assert(result > 0,s"failed to update price for portfolio id=$portfId result=$result")
 
       portfId :: checkIds
     }
 
-    assert(checkIds.size > 0)
+    assert(checkIds.size > 0,s"bad checkIds size=${checkIds.size}")
     checkIds
   }
 

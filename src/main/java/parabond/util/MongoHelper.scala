@@ -288,7 +288,8 @@ object MongoHelper {
 
     val result = portfolioCollection.updateOne(portfQuery, newPrice)
 
-    result.getModifiedCount
+    result.getMatchedCount
+//    result.getModifiedCount
   }
 
   /**
