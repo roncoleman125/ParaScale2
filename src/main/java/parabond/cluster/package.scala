@@ -142,10 +142,15 @@ package object cluster {
       val result = MongoHelper.updatePrice(portfId,CHECK_VALUE)
       assert(result > 0,s"failed to update price for portfolio id=$portfId result=$result")
 
-      portfId :: checkIds
+      // Avoid adding duplicates on outside chance this may happen.
+      if(!checkIds.contains(portfId))
+        portfId :: checkIds
+      else
+        checkIds
     }
 
     assert(checkIds.size > 0,s"bad checkIds size=${checkIds.size}")
+
     checkIds
   }
 
@@ -176,6 +181,17 @@ package object cluster {
     }
 
     misses
+  }
+
+  /**
+    * Resets the selected portfolio prices.
+    * @param portfIds Portfolio ids
+    */
+  def checkClear(portfIds: List[Int]): Unit = {
+    portfIds.foreach { portfId =>
+      val result = MongoHelper.updatePrice(portfId,CHECK_VALUE)
+//      assert(result > 0,s"failed to update price for portfolio id=$portfId result=$result")
+    }
   }
 
   /**
