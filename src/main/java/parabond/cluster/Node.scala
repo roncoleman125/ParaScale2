@@ -26,6 +26,7 @@
  */
 package parabond.cluster
 
+import parascale.util.getPropertyOrElse
 import scala.util.Random
 
 /**
@@ -57,3 +58,57 @@ abstract class Node(partition: Partition) {
     deck
   }
 }
+
+object Node {
+  /**
+    * Gets a compatible node for the indicated partition.
+    * <p>Use the VM option, -Dnode=className> to change the default node.
+    * @param partition Indicated partition
+    * @return Node
+    */
+  def getInstance(partition: Partition): Node = {
+    // Get the class
+    val prop = getPropertyOrElse("node", "parabond.cluster.BasicNode")
+
+    val clazz = Class.forName(prop)
+
+    // Get  constructor with Partition as the one and only parameter
+    try {
+      // Throws exception here if there is no such constructor
+      val constructor = clazz.getConstructor(classOf[Partition])
+
+      // If we get here, we have a proper constructor
+      val node = constructor.newInstance(partition)
+
+      // Make sure this is not class masquerading as a Node
+      if(!node.isInstanceOf[Node])
+        return null
+
+      node.asInstanceOf[Node]
+    }
+    catch {
+      case e: Exception =>
+        e.printStackTrace()
+        null
+    }
+    //    // Find the appropriate constructor
+    //    val constructors = clazz.getConstructors()
+    //
+    //    // One we're looking for has Partition as the first and only formal parameter.
+    //    // An alternative way to do this is to use th
+    //    constructors.find { constructor =>
+    //      val paramTypes = constructor.getParameterTypes
+    //      paramTypes.size == 1 && paramTypes(0) == classOf[Partition]
+    //    } match {
+    //      case Some(constructor) =>
+    //        // This will fail if the clazz is NOT a Node
+    //        val node = constructor.newInstance(partition).asInstanceOf[Node]
+    //        node
+    //
+    //      case None =>
+    //        // If we get here, found no compatible Node
+    //        null
+    //    }
+  }
+}
+
