@@ -67,7 +67,7 @@ package object perfect {
     * @return sum of factors
     */
   def sumOfFactors(number: Long) = {
-    (1L to number.toLong).foldLeft(0L) { (sum, i) => if (number % i == 0L) sum + i else sum }
+    (1L to number).foldLeft(0L) { (sum, i) => if (number % i == 0L) sum + i else sum }
   }
 
 //  /**
@@ -94,7 +94,7 @@ package object perfect {
     * @return Sum of factors
     */
   def sumOfFactorsInRange(lower: Long, upper: Long, number: Long): Long = {
-    (lower to upper).foldLeft(0L) { (sum, i) => if (number % i == 0) sum + i else sum }
+    Range.Long(lower, upper, 1).foldLeft(0L) { (sum, i) => if (number % i == 0) sum + i else sum }
   }
 
   /**
