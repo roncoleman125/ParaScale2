@@ -42,7 +42,7 @@ object CoarseGrainedNode extends App {
   val seed = getPropertyOrElse("seed",0)
   val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
   val n = getPropertyOrElse("n", PORTF_NUM)
-  val begin = getPropertyOrElse("begin", 0)
+  val begin = getPropertyOrElse("begin", 1)
 
   val checkIds = checkReset(n)
 
@@ -69,17 +69,14 @@ object CoarseGrainedNode extends App {
   * Prices a block of portfolios per core.
   */
 class CoarseGrainedNode(partition: Partition) extends Node(partition) {
-  /**
-    * Prices each portfolio
-    * @return
-    */
-  def basic = new BasicNode(partition)
+  // Node used the price portfolios.
+  def node = new BasicNode(partition)
 
   /**
     * Runs the portfolio analyses.
     * @return Analysis
     */
-  def analyze(): Analysis = {
+  override def analyze(): Analysis = {
     // Clock in
     val t0 = System.nanoTime
 
@@ -128,6 +125,6 @@ class CoarseGrainedNode(partition: Partition) extends Node(partition) {
     * @return Completed work
     */
   def price(jobs: Seq[Job]) : Seq[Job] = {
-    jobs.map(basic.price)
+    jobs.map(node.price)
   }
 }

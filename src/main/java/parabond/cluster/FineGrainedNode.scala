@@ -30,9 +30,10 @@ import org.apache.log4j.Logger
 import parabond.casa.MongoDbObject
 import parabond.entry.SimpleBond
 import parabond.util.Constant.{NUM_PORTFOLIOS, PORTF_NUM}
-import parabond.util.{Helper, Job, MongoHelper, Result}
+import parabond.util.{Helper, JavaMongoHelper, Job, MongoHelper, Result}
 import parabond.value.SimpleBondValuator
 import parascale.util.getPropertyOrElse
+
 import scala.collection.parallel.CollectionConverters._
 
 /**
@@ -42,10 +43,13 @@ import scala.collection.parallel.CollectionConverters._
 object FineGrainedNode extends App {
   val LOG = Logger.getLogger(getClass)
 
+  // Hushes mongo
+  JavaMongoHelper.hush()
+
   val seed = getPropertyOrElse("seed",0)
   val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
   val n = getPropertyOrElse("n", PORTF_NUM)
-  val begin = getPropertyOrElse("begin", 0)
+  val begin = getPropertyOrElse("begin", 1)
 
   val checkIds = checkReset(n)
 
@@ -59,9 +63,9 @@ object FineGrainedNode extends App {
   */
 class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
   /**
-    * Price a portfolio
-    * @param task Portfolio ids
-    * @return Valuation
+    * Price a portfolio and updates mongo accordingly.
+    * @param task Portfolio id to price
+    * @return Valuation as job result
     */
   override def price(task: Job): Job = {
     // Value each bond in the portfolio
@@ -69,15 +73,19 @@ class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
 
     // Retrieve the portfolio
     val portfId = task.portfId
+    assert(portfId>0, s"invalid portfId=$portfId")
 
     val portfsQuery = MongoDbObject("id" -> portfId)
 
     val portfsCursor = MongoHelper.portfolioCollection.find(portfsQuery)
+    assert(portfsCursor.iterator().hasNext, s"query found no bonds for portfId=$portfId")
 
     // Get the bonds in the portfolio
     val bids = MongoHelper.asList(portfsCursor,"instruments")
+    assert(bids.size>0, s"bond ids empty for portId=$portfId")
 
     val bondIds = for(i <- 0 until bids.size) yield new Job(bids(i),null,null)
+    assert(bondIds.length>0, s"no jobs created for portfId=$portfId")
 
     val output = bondIds.par.map { bondId =>
       // Get the bond from the bond collection
@@ -90,6 +98,7 @@ class FineGrainedNode(partition: Partition) extends BasicNode(partition) {
       val valuator = new SimpleBondValuator(bond, Helper.yieldCurve)
 
       val price = valuator.price
+      assert(price>0, s"invalid price for portfId=$portfId")
 
       new SimpleBond(bond.id,bond.coupon,bond.freq,bond.tenor,price)
     }.reduce(sum)

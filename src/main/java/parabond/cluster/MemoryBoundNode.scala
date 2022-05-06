@@ -35,9 +35,6 @@ import parabond.util.{Helper, Job, MongoHelper, Result}
 import parabond.util.Constant.NUM_PORTFOLIOS
 import parabond.value.SimpleBondValuator
 import parascale.util.getPropertyOrElse
-
-import scala.collection.mutable.ListBuffer
-import scala.util.Random
 import scala.collection.parallel.CollectionConverters._
 
 /**
@@ -50,7 +47,7 @@ object MemoryBoundNode extends App {
   val seed = getPropertyOrElse("seed",0)
   val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
   val n = getPropertyOrElse("n", PORTF_NUM)
-  val begin = getPropertyOrElse("begin", 0)
+  val begin = getPropertyOrElse("begin", 1)
 
   val checkIds = checkReset(n)
 
@@ -63,7 +60,11 @@ object MemoryBoundNode extends App {
   * Prices one portfolio per core by first loading all the bonds of a portfolio into memory.
   */
 class MemoryBoundNode(partition: Partition) extends Node(partition) {
-  def analyze(): Analysis = {
+  /**
+    * Runs the portfolio analyses.
+    * @return Analysis
+    */
+  override def analyze(): Analysis = {
     // Clock in
     val t0 = System.nanoTime
 
@@ -71,6 +72,7 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
 
     // The jobs working we're on, k+1 since portf ids are 1-based
     assert(deck.size == (end-begin+1))
+
     val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
       jobs ++ List(new Job(deck(k)))
     }.par
@@ -84,12 +86,17 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
     Analysis(results.toList, t0, t1)
   }
 
-  def price(work: Job): Job = {
+  /**
+    * Prices a job assumed to be in memory.
+    * @param job Job
+    * @return Job as the result
+    */
+  def price(job: Job): Job = {
     // Value each bond in the portfolio
     val t0 = System.nanoTime
 
     // We already have to bonds in memory.
-    val value = work.bonds.foldLeft(0.0) { (sum, bond) =>
+    val value = job.bonds.foldLeft(0.0) { (sum, bond) =>
       // Price the bond
       val valuator = new SimpleBondValuator(bond, Helper.yieldCurve)
 
@@ -99,12 +106,12 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
       sum + price
     }
 
-    MongoHelper.updatePrice(work.portfId,value)
+    MongoHelper.updatePrice(job.portfId,value)
 
     val t1 = System.nanoTime
 
     // Return the result for this portfolio
-    new Job(work.portfId,null,Result(work.portfId,value,work.bonds.size,t0,t1))
+    new Job(job.portfId,null,Result(job.portfId,value,job.bonds.size,t0,t1))
   }
 
   /**

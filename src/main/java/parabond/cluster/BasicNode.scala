@@ -43,7 +43,7 @@ object BasicNode extends App {
 
   // Set the run parameters
   val n = getPropertyOrElse("n", PORTF_NUM)
-  val begin = getPropertyOrElse("begin", 0)
+  val begin = getPropertyOrElse("begin", 1)
 
   // Reset the check portfolios over ALL portfolios
   val checkIds = checkReset(n)
@@ -58,6 +58,10 @@ object BasicNode extends App {
   * Prices one portfolio per core using the basic or "naive" algorithm.
   */
 class BasicNode(partition: Partition) extends Node(partition) {
+  /**
+    * Runs the portfolio analyses.
+    * @return Analysis
+    */
   override def analyze(): Analysis = {
     // Clock in
     val t0 = System.nanoTime
@@ -65,7 +69,10 @@ class BasicNode(partition: Partition) extends Node(partition) {
     // Contains the randomize sequence of partfolio ids in the partition
     val deck = getDeck()
 
-    // The jobs working we're on, k+1 since portf ids are 1-based
+    // Portfolio ids are 1-based
+    deck.foreach { id => assert(id > 0)}
+
+    // Jobs working we're on, k+1 since portf ids are 1-based
     assert(deck.size == (end-begin))
 
     val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
