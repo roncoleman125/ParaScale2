@@ -70,17 +70,17 @@ class BasicNode(partition: Partition) extends Node(partition) {
     val deck = getDeck()
 
     // Portfolio ids are 1-based
-    deck.foreach { id => assert(id > 0)}
+    deck.foreach { portfId => assert(portfId > 0)}
 
-    // Jobs working we're on, k+1 since portf ids are 1-based
+    // Begin is 1-based and end is EXCLUSIVE
     assert(deck.size == (end-begin))
 
-    val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
-      jobs ++ List(new Job(deck(k)))
-    }.par
+    val jobs = for(portfId <- deck) yield {
+      new Job(portfId)
+    }
 
     // Run the analysis
-    val results = jobs.map(price)
+    val results = jobs.par.map(price)
 
     // Clock out
     val t1 = System.nanoTime

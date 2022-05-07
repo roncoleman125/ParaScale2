@@ -75,9 +75,8 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
     deck.foreach { no => assert(no > 0)}
     assert(deck.size == (end-begin))
 
-    val specs = for(jobno <- deck) yield {
-      // -1 since deck is 0-based
-      new Job(deck(jobno-1))
+    val specs = for(portfId <- deck) yield {
+      new Job(portfId)
     }
 
     // Load the portfolios into memory.
