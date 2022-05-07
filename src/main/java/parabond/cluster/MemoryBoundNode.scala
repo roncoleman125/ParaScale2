@@ -31,21 +31,24 @@ import parabond.util.Constant.PORTF_NUM
 import parabond.casa.MongoDbObject
 import parabond.util.MongoHelper.{bondCollection, mongo}
 import parabond.entry.SimpleBond
-import parabond.util.{Helper, Job, MongoHelper, Result}
-import parabond.util.Constant.NUM_PORTFOLIOS
+import parabond.util.{Helper, JavaMongoHelper, Job, MongoHelper, Result}
 import parabond.value.SimpleBondValuator
 import parascale.util.getPropertyOrElse
 import scala.collection.parallel.CollectionConverters._
+import scala.concurrent.duration.Duration
 
 /**
   * Runs a memory-bound node which retrieves the portfolios in random order, loads them all into memory
   * then prices as a parallel collection.
+  * @author Ron.Coleman
   */
 object MemoryBoundNode extends App {
   val LOG = Logger.getLogger(getClass)
 
+  // Quiet mongo prior to any access to it.
+  JavaMongoHelper.hush()
+
   val seed = getPropertyOrElse("seed",0)
-  val size = getPropertyOrElse("size", NUM_PORTFOLIOS)
   val n = getPropertyOrElse("n", PORTF_NUM)
   val begin = getPropertyOrElse("begin", 1)
 
@@ -69,16 +72,19 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
     val t0 = System.nanoTime
 
     val deck = getDeck()
+    deck.foreach { no => assert(no > 0)}
+    assert(deck.size == (end-begin))
 
-    // The jobs working we're on, k+1 since portf ids are 1-based
-    assert(deck.size == (end-begin+1))
+    val specs = for(jobno <- deck) yield {
+      // -1 since deck is 0-based
+      new Job(deck(jobno-1))
+    }
 
-    val jobs = (0 until deck.size).foldLeft(List[Job]()) { (jobs, k) =>
-      jobs ++ List(new Job(deck(k)))
-    }.par
+    // Load the portfolios into memory.
+    val jobs = loadParallel(specs)
 
     // Run the analysis
-    val results = jobs.map(price)
+    val results = jobs.par.map(price)
 
     // Clock out
     val t1 = System.nanoTime
@@ -115,6 +121,33 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
   }
 
   /**
+    * Loads portfolios into memory using parallelism.
+    */
+  def loadParallel(specs: List[Job]) : List[Job] = {
+    import scala.concurrent.{Await, Future}
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    val futures = for(spec <- specs) yield Future {
+      // Select a portfolio
+      val portfId = spec.portfId
+
+      // Fetch this portfolio's bonds (not the bond ids!)
+      MongoHelper.fetchBonds(portfId)
+    }
+
+    // Wait for the futures to complete, ie, the bonds to arrive
+    val jobs = for(future <- futures) yield {
+      val result = Await.result(future, Duration.Inf)
+
+      // Use null because we don't have result yet -- completed when we analyze the portfolio
+      new Job(result.portfId, result.bonds, null)
+    }
+
+    jobs
+  }
+
+
+  /**
     * Loads portfolios using and their bonds into memory serially.
     */
   def loadPortfsSequential(tasks: Seq[Job]) : Seq[Job] = {
@@ -149,32 +182,5 @@ class MemoryBoundNode(partition: Partition) extends Node(partition) {
     }
 
     portfIdToBondsPairs
-  }
-
-  /**
-    * Parallel loads portfolios using and their bonds into memory using futures.
-    */
-  def loadPortfsParallel(tasks: List[Job]) : List[Job] = {
-    import scala.concurrent.{Await, Future}
-    import scala.concurrent.ExecutionContext.Implicits.global
-
-    val futures = for(input <- tasks) yield Future {
-      // Select a portfolio
-      val portfId = input.portfId
-
-      // Fetch its bonds
-      MongoHelper.fetchBonds(portfId)
-    }
-
-    val list = futures.foldLeft(List[Job]()) { (list, future) =>
-      import scala.concurrent.duration.DurationInt
-      import parabond.util.Constant._
-      val result = Await.result(future, MAX_WAIT_TIME.seconds)
-
-      // Use null because we don't have result yet -- completed when we analyze the portfolio
-      new Job(result.portfId, result.bonds, null) :: list
-    }
-
-    list
   }
 }
